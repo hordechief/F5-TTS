@@ -109,3 +109,5 @@ curl -X POST http://.1.29:9103/infer -H "Content-Type: application/json" -d '{"i
 # infer with reference audio 
 curl -X POST http://localhost:9103/process -H "Content-Type: application/json" -d '{"input_file": "/home/aurora/data/tts/002.m4a"}'
 ```
+
+Note: 9103 is the mapping port of 8890, 8890 is hardcode in `app.py`
