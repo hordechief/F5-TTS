@@ -1,7 +1,12 @@
+## Build image from Dockerfile
+```
+docker build -t f5tts:v1 .
+```
 
-## Update code
-
-因为调试原因，代码进行了共享，需要修改`/workspace/`下的F5-TTS为合适的代码
+## Built container with f5-tts docker image
+```
+docker run -it -p 9201:8888 -p 9202:8889 -p 9203:8890 -p 9204:8891 --name f5-tts  --gpus all -v /home/aurora:/home/aurora -v /home/aurora/.cache/:/root/.cache/ ghcr.io/swivid/f5-tts:main
+```
 
 ## Launch the application
 ```
@@ -87,7 +92,7 @@ cd /workspace/F5-TTS
 python app.py
 ```
 
-### test url
+### Test URL
 ```
 # infer only
 curl -X POST http://localhost:9103/infer -H "Content-Type: application/json" -d '{"input_file": "Select Create Alert on any paper page to activate paper alerts."}'
