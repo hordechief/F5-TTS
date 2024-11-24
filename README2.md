@@ -5,7 +5,9 @@ docker build -t f5tts:v1 .
 
 ## Built container with f5-tts docker image
 ```
-docker run -it -p 9201:8888 -p 9202:8889 -p 9203:8890 -p 9204:8891 --name f5-tts  --gpus all -v /home/aurora:/home/aurora -v /home/aurora/.cache/:/root/.cache/ ghcr.io/swivid/f5-tts:main
+# docker run -it -p 9201:8888 -p 9202:8889 -p 9203:8890 -p 9204:8891 --name f5-tts  --gpus all -v /home/aurora:/home/aurora -v /home/aurora/.cache/:/root/.cache/ ghcr.io/swivid/f5-tts:main
+
+docker run -it -p 9201:8888 -p 9202:8889 -p 9203:8890 -p 9204:8891 --name f5-tts  --gpus all -v /home/aurora:/home/aurora -v /home/aurora/.cache/:/root/.cache/ f5tts:v1
 ```
 
 ## Launch the application
