@@ -4,7 +4,7 @@ USER root
 
 ARG DEBIAN_FRONTEND=noninteractive
 
-LABEL github_repo="https://github.com/SWivid/F5-TTS"
+LABEL github_repo="https://github.com/hordechief/F5-TTS"
 
 RUN set -x \
     && apt-get update \
