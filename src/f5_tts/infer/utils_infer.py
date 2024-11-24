@@ -3,7 +3,6 @@
 import os
 import sys
 
-os.environ["PYTOCH_ENABLE_MPS_FALLBACK"] = "1"  # for MPS device compatibility
 sys.path.append(f"../../{os.path.dirname(os.path.abspath(__file__))}/third_party/BigVGAN/")
 
 import hashlib
@@ -12,6 +11,7 @@ import tempfile
 from importlib.resources import files
 
 import matplotlib
+import time
 
 matplotlib.use("Agg")
 
@@ -20,7 +20,6 @@ import numpy as np
 import torch
 import torchaudio
 import tqdm
-from huggingface_hub import snapshot_download, hf_hub_download
 from pydub import AudioSegment, silence
 from transformers import pipeline
 from vocos import Vocos
@@ -89,30 +88,17 @@ def chunk_text(text, max_chars=135):
 
 
 # load vocoder
-def load_vocoder(vocoder_name="vocos", is_local=False, local_path="", device=device, hf_cache_dir=None):
+def load_vocoder(vocoder_name="vocos", is_local=False, local_path="", device=device):
     if vocoder_name == "vocos":
-        # vocoder = Vocos.from_pretrained("charactr/vocos-mel-24khz").to(device)
         if is_local:
             print(f"Load vocos from local path {local_path}")
-            config_path = f"{local_path}/config.yaml"
-            model_path = f"{local_path}/pytorch_model.bin"
+            vocoder = Vocos.from_hparams(f"{local_path}/config.yaml")
+            state_dict = torch.load(f"{local_path}/pytorch_model.bin", map_location="cpu")
+            vocoder.load_state_dict(state_dict)
+            vocoder = vocoder.eval().to(device)
         else:
             print("Download Vocos from huggingface charactr/vocos-mel-24khz")
-            repo_id = "charactr/vocos-mel-24khz"
-            config_path = hf_hub_download(repo_id=repo_id, cache_dir=hf_cache_dir, filename="config.yaml")
-            model_path = hf_hub_download(repo_id=repo_id, cache_dir=hf_cache_dir, filename="pytorch_model.bin")
-        vocoder = Vocos.from_hparams(config_path)
-        state_dict = torch.load(model_path, map_location="cpu", weights_only=True)
-        from vocos.feature_extractors import EncodecFeatures
-
-        if isinstance(vocoder.feature_extractor, EncodecFeatures):
-            encodec_parameters = {
-                "feature_extractor.encodec." + key: value
-                for key, value in vocoder.feature_extractor.encodec.state_dict().items()
-            }
-            state_dict.update(encodec_parameters)
-        vocoder.load_state_dict(state_dict)
-        vocoder = vocoder.eval().to(device)
+            vocoder = Vocos.from_pretrained("charactr/vocos-mel-24khz").to(device)
     elif vocoder_name == "bigvgan":
         try:
             from third_party.BigVGAN import bigvgan
@@ -122,8 +108,7 @@ def load_vocoder(vocoder_name="vocos", is_local=False, local_path="", device=dev
             """download from https://huggingface.co/nvidia/bigvgan_v2_24khz_100band_256x/tree/main"""
             vocoder = bigvgan.BigVGAN.from_pretrained(local_path, use_cuda_kernel=False)
         else:
-            local_path = snapshot_download(repo_id="nvidia/bigvgan_v2_24khz_100band_256x", cache_dir=hf_cache_dir)
-            vocoder = bigvgan.BigVGAN.from_pretrained(local_path, use_cuda_kernel=False)
+            vocoder = bigvgan.BigVGAN.from_pretrained("nvidia/bigvgan_v2_24khz_100band_256x", use_cuda_kernel=False)
 
         vocoder.remove_weight_norm()
         vocoder = vocoder.eval().to(device)
@@ -135,10 +120,10 @@ def load_vocoder(vocoder_name="vocos", is_local=False, local_path="", device=dev
 asr_pipe = None
 
 
-def initialize_asr_pipeline(device: str = device, dtype=None):
+def initialize_asr_pipeline(device=device, dtype=None):
     if dtype is None:
         dtype = (
-            torch.float16 if "cuda" in device and torch.cuda.get_device_properties(device).major >= 6 else torch.float32
+            torch.float16 if device == "cuda" and torch.cuda.get_device_properties(device).major >= 6 else torch.float32
         )
     global asr_pipe
     asr_pipe = pipeline(
@@ -149,29 +134,13 @@ def initialize_asr_pipeline(device: str = device, dtype=None):
     )
 
 
-# transcribe
-
-
-def transcribe(ref_audio, language=None):
-    global asr_pipe
-    if asr_pipe is None:
-        initialize_asr_pipeline(device=device)
-    return asr_pipe(
-        ref_audio,
-        chunk_length_s=30,
-        batch_size=128,
-        generate_kwargs={"task": "transcribe", "language": language} if language else {"task": "transcribe"},
-        return_timestamps=False,
-    )["text"].strip()
-
-
 # load model checkpoint for inference
 
 
-def load_checkpoint(model, ckpt_path, device: str, dtype=None, use_ema=True):
+def load_checkpoint(model, ckpt_path, device, dtype=None, use_ema=True):
     if dtype is None:
         dtype = (
-            torch.float16 if "cuda" in device and torch.cuda.get_device_properties(device).major >= 6 else torch.float32
+            torch.float16 if device == "cuda" and torch.cuda.get_device_properties(device).major >= 6 else torch.float32
         )
     model = model.to(dtype)
 
@@ -179,9 +148,9 @@ def load_checkpoint(model, ckpt_path, device: str, dtype=None, use_ema=True):
     if ckpt_type == "safetensors":
         from safetensors.torch import load_file
 
-        checkpoint = load_file(ckpt_path, device=device)
+        checkpoint = load_file(ckpt_path)
     else:
-        checkpoint = torch.load(ckpt_path, map_location=device, weights_only=True)
+        checkpoint = torch.load(ckpt_path, weights_only=True)
 
     if use_ema:
         if ckpt_type == "safetensors":
@@ -202,9 +171,6 @@ def load_checkpoint(model, ckpt_path, device: str, dtype=None, use_ema=True):
         if ckpt_type == "safetensors":
             checkpoint = {"model_state_dict": checkpoint}
         model.load_state_dict(checkpoint["model_state_dict"])
-
-    del checkpoint
-    torch.cuda.empty_cache()
 
     return model.to(device)
 
@@ -227,7 +193,7 @@ def load_model(
     tokenizer = "custom"
 
     print("\nvocab : ", vocab_file)
-    print("token : ", tokenizer)
+    print("tokenizer : ", tokenizer)
     print("model : ", ckpt_path, "\n")
 
     vocab_char_map, vocab_size = get_tokenizer(vocab_file, tokenizer)
@@ -253,22 +219,6 @@ def load_model(
     return model
 
 
-def remove_silence_edges(audio, silence_threshold=-42):
-    # Remove silence from the start
-    non_silent_start_idx = silence.detect_leading_silence(audio, silence_threshold=silence_threshold)
-    audio = audio[non_silent_start_idx:]
-
-    # Remove silence from the end
-    non_silent_end_duration = audio.duration_seconds
-    for ms in reversed(audio):
-        if ms.dBFS > silence_threshold:
-            break
-        non_silent_end_duration -= 0.001
-    trimmed_audio = audio[: int(non_silent_end_duration * 1000)]
-
-    return trimmed_audio
-
-
 # preprocess reference audio and text
 
 
@@ -280,7 +230,7 @@ def preprocess_ref_audio_text(ref_audio_orig, ref_text, clip_short=True, show_in
         if clip_short:
             # 1. try to find long silence for clipping
             non_silent_segs = silence.split_on_silence(
-                aseg, min_silence_len=1000, silence_thresh=-50, keep_silence=1000, seek_step=10
+                aseg, min_silence_len=1000, silence_thresh=-50, keep_silence=1000
             )
             non_silent_wave = AudioSegment.silent(duration=0)
             for non_silent_seg in non_silent_segs:
@@ -292,7 +242,7 @@ def preprocess_ref_audio_text(ref_audio_orig, ref_text, clip_short=True, show_in
             # 2. try to find short silence for clipping if 1. failed
             if len(non_silent_wave) > 15000:
                 non_silent_segs = silence.split_on_silence(
-                    aseg, min_silence_len=100, silence_thresh=-40, keep_silence=1000, seek_step=10
+                    aseg, min_silence_len=100, silence_thresh=-40, keep_silence=1000
                 )
                 non_silent_wave = AudioSegment.silent(duration=0)
                 for non_silent_seg in non_silent_segs:
@@ -308,7 +258,6 @@ def preprocess_ref_audio_text(ref_audio_orig, ref_text, clip_short=True, show_in
                 aseg = aseg[:15000]
                 show_info("Audio is over 15s, clipping short. (3)")
 
-        aseg = remove_silence_edges(aseg) + AudioSegment.silent(duration=50)
         aseg.export(f.name, format="wav")
         ref_audio = f.name
 
@@ -317,19 +266,29 @@ def preprocess_ref_audio_text(ref_audio_orig, ref_text, clip_short=True, show_in
         audio_data = audio_file.read()
         audio_hash = hashlib.md5(audio_data).hexdigest()
 
-    if not ref_text.strip():
-        global _ref_audio_cache
-        if audio_hash in _ref_audio_cache:
-            # Use cached asr transcription
-            show_info("Using cached reference text...")
-            ref_text = _ref_audio_cache[audio_hash]
-        else:
-            show_info("No reference text provided, transcribing reference audio...")
-            ref_text = transcribe(ref_audio)
-            # Cache the transcribed text (not caching custom ref_text, enabling users to do manual tweak)
-            _ref_audio_cache[audio_hash] = ref_text
+    global _ref_audio_cache
+    if audio_hash in _ref_audio_cache:
+        # Use cached reference text
+        show_info("Using cached reference text...")
+        ref_text = _ref_audio_cache[audio_hash]
     else:
-        show_info("Using custom reference text...")
+        if not ref_text.strip():
+            global asr_pipe
+            if asr_pipe is None:
+                initialize_asr_pipeline(device=device)
+            show_info("No reference text provided, transcribing reference audio...")
+            ref_text = asr_pipe(
+                ref_audio,
+                chunk_length_s=30,
+                batch_size=128,
+                generate_kwargs={"task": "transcribe"},
+                return_timestamps=False,
+            )["text"].strip()
+            show_info("Finished transcription")
+        else:
+            show_info("Using custom reference text...")
+        # Cache the transcribed text
+        _ref_audio_cache[audio_hash] = ref_text
 
     # Ensure ref_text ends with a proper sentence-ending punctuation
     if not ref_text.endswith(". ") and not ref_text.endswith("。"):
@@ -337,8 +296,6 @@ def preprocess_ref_audio_text(ref_audio_orig, ref_text, clip_short=True, show_in
             ref_text += " "
         else:
             ref_text += ". "
-
-    print("ref_text  ", ref_text)
 
     return ref_audio, ref_text
 
@@ -428,6 +385,8 @@ def infer_batch_process(
 
     if len(ref_text[-1].encode("utf-8")) == 1:
         ref_text = ref_text + " "
+
+    start_time = time.time()
     for i, gen_text in enumerate(progress.tqdm(gen_text_batches)):
         # Prepare the text
         text_list = [ref_text + gen_text]
@@ -444,6 +403,7 @@ def infer_batch_process(
 
         # inference
         with torch.inference_mode():
+            start_time_1 = time.time()
             generated, _ = model_obj.sample(
                 cond=audio,
                 text=final_text_list,
@@ -452,16 +412,25 @@ def infer_batch_process(
                 cfg_strength=cfg_strength,
                 sway_sampling_coef=sway_sampling_coef,
             )
+            end_time_1 = time.time()
+            print("\n--------------------------------------------------------")
+            print(f"infer_batch_process-1#1 Execution time: {end_time_1 - start_time_1:.2f} seconds")
 
+            start_time_2 = time.time()
             generated = generated.to(torch.float32)
             generated = generated[:, ref_audio_len:, :]
             generated_mel_spec = generated.permute(0, 2, 1)
+            # start_time_1 = time.time()
             if mel_spec_type == "vocos":
                 generated_wave = vocoder.decode(generated_mel_spec)
             elif mel_spec_type == "bigvgan":
                 generated_wave = vocoder(generated_mel_spec)
             if rms < target_rms:
                 generated_wave = generated_wave * rms / target_rms
+            end_time_2 = time.time()
+            print("\n--------------------------------------------------------")
+            print(f"infer_batch_process-1#2 Execution time: {end_time_2 - start_time_2:.2f} seconds")
+
 
             # wav -> numpy
             generated_wave = generated_wave.squeeze().cpu().numpy()
@@ -469,6 +438,11 @@ def infer_batch_process(
             generated_waves.append(generated_wave)
             spectrograms.append(generated_mel_spec[0].cpu().numpy())
 
+    end_time = time.time()
+    print("\n--------------------------------------------------------")
+    print(f"infer_batch_process-1 Execution time: {end_time - start_time:.2f} seconds")
+    
+    start_time = time.time()
     # Combine all generated waves with cross-fading
     if cross_fade_duration <= 0:
         # Simply concatenate
@@ -506,6 +480,10 @@ def infer_batch_process(
 
             final_wave = new_wave
 
+    end_time = time.time()
+    print("\n--------------------------------------------------------")
+    print(f"infer_batch_process-2 Execution time: {end_time - start_time:.2f} seconds")
+    
     # Create a combined spectrogram
     combined_spectrogram = np.concatenate(spectrograms, axis=1)
 
@@ -517,9 +495,7 @@ def infer_batch_process(
 
 def remove_silence_for_generated_wav(filename):
     aseg = AudioSegment.from_file(filename)
-    non_silent_segs = silence.split_on_silence(
-        aseg, min_silence_len=1000, silence_thresh=-50, keep_silence=500, seek_step=10
-    )
+    non_silent_segs = silence.split_on_silence(aseg, min_silence_len=1000, silence_thresh=-50, keep_silence=500)
     non_silent_wave = AudioSegment.silent(duration=0)
     for non_silent_seg in non_silent_segs:
         non_silent_wave += non_silent_seg
