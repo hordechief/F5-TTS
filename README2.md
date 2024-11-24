@@ -1,3 +1,8 @@
+
+## Update code
+
+因为调试原因，代码进行了共享，需要修改`/workspace/`下的F5-TTS为合适的代码
+
 ## Launch the application
 ```
 f5-tts_infer-gradio --port 8889 --host 0.0.0.0
@@ -61,6 +66,21 @@ def get_local_ip_address() -> str:
 ```
 
 ## Lannch app.py for API
+
+### Preparation
+Change the reference audio
+``` python
+ref_file="/home/aurora/data/tts/002.m4a"
+```
+
+Change ouput
+``` python
+file_wave=str(files("f5_tts").joinpath("/home/aurora/output/api_out.wav"))
+file_spect=str(files("f5_tts").joinpath("/home/aurora/output/api_out.png"))
+output_audio_path = '/home/aurora/output/api_out.wav'
+```
+### Execute app
+
 ```
 conda deactivate # if activate virtual environment
 cd /workspace/F5-TTS
