@@ -73,16 +73,24 @@ def get_local_ip_address() -> str:
 ## Lannch app.py for API
 
 ### Preparation
-Change the reference audio
+Change the reference audio in `app.py`
 ``` python
 ref_file="/home/aurora/data/tts/002.m4a"
 ```
 
-Change ouput
+Change ouput in `app.py`
 ``` python
 file_wave=str(files("f5_tts").joinpath("/home/aurora/output/api_out.wav"))
 file_spect=str(files("f5_tts").joinpath("/home/aurora/output/api_out.png"))
 output_audio_path = '/home/aurora/output/api_out.wav'
+```
+
+Change proxy in `Dockerfile`
+```
+ENV http_proxy=http://172.17.0.1:7897/
+ENV https_proxy=http://172.17.0.1:7897/
+ENV socks5_proxy=172.17.0.1:7897/
+ENV no_proxy="localhost,127.0.0.1"
 ```
 ### Execute app
 
