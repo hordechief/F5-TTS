@@ -106,10 +106,11 @@ python app.py
 ```
 # infer only
 curl -X POST http://localhost:9103/infer -H "Content-Type: application/json" -d '{"input_file": "Select Create Alert on any paper page to activate paper alerts."}'
-curl -X POST http://.1.29:9103/infer -H "Content-Type: application/json" -d '{"input_file": "Select Create Alert on any paper page to activate paper alerts."}'
+
+curl -X POST http://172.16.3.24:9103/infer -H "Content-Type: application/json" -d '{"input_file": "Select Create Alert on any paper page to activate paper alerts."}'
 
 # infer with reference audio 
-curl -X POST http://localhost:9103/process -H "Content-Type: application/json" -d '{"input_file": "/home/aurora/data/tts/002.m4a"}'
+curl -X POST http://localhost:9103/process -H "Content-Type: application/json" -d '{"input_file": "Select Create Alert on any paper page to activate paper alerts."}'
 ```
 
 Note: 9103 is the mapping port of 8890, 8890 is hardcode in `app.py`
