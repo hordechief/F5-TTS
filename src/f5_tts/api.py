@@ -152,7 +152,7 @@ if __name__ == "__main__":
 
     wav, sr, spect = f5tts.infer(
         #ref_file=str(files("f5_tts").joinpath("infer/examples/basic/basic_ref_en.wav")),
-        ref_file="/home/aurora/data/tts/002.m4a",
+        ref_file="/home/aurora/data/tts/002.MP3",
         #ref_text="some call me nature, others call me mother nature.",a
         ref_text="",
         # gen_text="""I don't really care what you call me. I've been a silent spectator, watching species evolve, empires rise and fall. But always remember, I am mighty and enduring. Respect me and I'll nurture you; ignore me and you shall face the consequences.""",
