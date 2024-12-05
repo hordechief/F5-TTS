@@ -6,6 +6,7 @@ import tqdm
 import random, sys
 import torchaudio
 import time
+from pathlib import Path
 
 from src.f5_tts.api import F5TTS
 
@@ -28,8 +29,12 @@ app = Flask(__name__)
 f5tts = F5TTS()
 
 start_time = time.time()
-ref_file="/home/aurora/data/tts/002.MP3"
-ref_file="/home/aurora/data/tts/trump.mp3"
+data_dir = os.environ.get("DATA_DIR",'./data')
+output_dir = os.environ.get("OUTPUT_DIR",'./output')
+print(f">>>>data_dir is {data_dir}, output_dir is {output_dir}")
+ref_file= str(Path(data_dir) / "tts" / "hordechief.mp3")
+ref_file= str(Path(data_dir) / "tts" / "trump.mp3")
+#TBD: dynamically change the ref file
 ref_text=""
 ref_file, ref_text = preprocess_ref_audio_text(ref_file, ref_text, device=f5tts.device)
 end_time = time.time()
@@ -41,10 +46,6 @@ print(f"preprocess_ref_audio_text Execution time: {end_time - start_time:.2f} se
 def process_file():
     input_file = request.json.get('input_file')
 
-    # change from input file to text
-    # if not input_file or not os.path.exists(input_file):
-    #     return jsonify({'error': 'Invalid file path'}), 400
-
     try:
         result = subprocess.run(['python', 'src/f5_tts/api.py', '--text', input_file], capture_output=True, text=True)
 
@@ -52,7 +53,7 @@ def process_file():
             return jsonify({'error': 'Script execution failed', 'output': result.stderr}), 500
         
         # output_audio_path = 'tests/api_out.wav'
-        output_audio_path = '/home/aurora/output/api_out.wav'
+        output_audio_path = str(Path(output_dir) / 'api_out.wav')
 
         return jsonify({'audio_file': output_audio_path}), 200
 
@@ -66,11 +67,11 @@ def process_file_infer():
     try:
         # -------------------- f5tts.infer ----------------------
         # wav, sr, spect = f5tts.infer(
-        #     ref_file="/home/aurora/data/tts/002.m4a",
+        #     ref_file="./data/tts/hordechief.mp3",
         #     ref_text="",
         #     gen_text=text,
-        #     file_wave=str(files("f5_tts").joinpath("/home/aurora/output/api_out.wav")),
-        #     file_spect=str(files("f5_tts").joinpath("/home/aurora/output/api_out.png")),
+        #     file_wave=str(files("f5_tts").joinpath("./output/api_out.wav")),
+        #     file_spect=str(files("f5_tts").joinpath("./output/api_out.png")),
         #     seed=-1,  # random seed = -1
         # )
 
@@ -78,11 +79,12 @@ def process_file_infer():
         seed_everything(seed)
         f5tts.seed = seed
 
-        # ref_file="/home/aurora/data/tts/002.m4a"
+        # ref_file="./data/tts/hordechief.mp3"
         # ref_text=""
         gen_text=text
-        file_wave=str(files("f5_tts").joinpath("/home/aurora/output/api_out.wav"))
-        file_spect=str(files("f5_tts").joinpath("/home/aurora/output/api_out.png"))
+        file_wave=str(Path(output_dir) / 'api_out.wav')
+        file_spect=str(Path(output_dir) / 'api_out.png')
+        print(f">>>file_wave is {file_wave}, file_spect is {file_spect}")
         show_info=print
         progress=tqdm
         target_rms=0.1
@@ -171,7 +173,7 @@ def process_file_infer():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
     
-    output_audio_path = '/home/aurora/output/api_out.wav'
+    output_audio_path = str(Path(output_dir) / 'api_out.wav')
 
     return jsonify({'audio_file': output_audio_path}), 200
 

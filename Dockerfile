@@ -15,10 +15,12 @@ RUN set -x \
     && apt-get clean
     
 WORKDIR /workspace
-ENV http_proxy=http://172.17.0.1:7897/
-ENV https_proxy=http://172.17.0.1:7897/
-ENV socks5_proxy=172.17.0.1:7897/
-ENV no_proxy="localhost,127.0.0.1"
+# ENV http_proxy=http://172.17.0.1:7897/
+# ENV https_proxy=http://172.17.0.1:7897/
+# ENV socks5_proxy=172.17.0.1:7897/
+# ENV no_proxy="localhost,127.0.0.1"
+ENV DATA_DIR="/home/aurora/data"
+ENV OUTPUT_DIR="/home/aurora/output"
 
 RUN git clone https://github.com/hordechief/F5-TTS.git \
     && cd F5-TTS \

@@ -136,6 +136,8 @@ class F5TTS:
         return wav, sr, spect
 
 import argparse
+import os
+from pathlib import Path
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="A script to process text input.")
@@ -150,18 +152,23 @@ if __name__ == "__main__":
 
     f5tts = F5TTS()
 
+    data_dir = os.environ.get("DATA_DIR",'./data')
+    output_dir = os.environ.get("OUTPUT_DIR",'./output')
+
     wav, sr, spect = f5tts.infer(
         #ref_file=str(files("f5_tts").joinpath("infer/examples/basic/basic_ref_en.wav")),
-        ref_file="/home/aurora/data/tts/002.MP3",
+        ref_file=str(Path(data_dir) / "tts" / "hordechief.mp3"),
         #ref_text="some call me nature, others call me mother nature.",a
         ref_text="",
         # gen_text="""I don't really care what you call me. I've been a silent spectator, watching species evolve, empires rise and fall. But always remember, I am mighty and enduring. Respect me and I'll nurture you; ignore me and you shall face the consequences.""",
         gen_text=args.text,
         # file_wave=str(files("f5_tts").joinpath("../../tests/api_out.wav")),
-        file_wave=str(files("f5_tts").joinpath("/home/aurora/output/api_out.wav")),
+        file_wave=str(files("f5_tts").joinpath("../../output/api_out.wav")),
         # file_spect=str(files("f5_tts").joinpath("../../tests/api_out.png")),
-        file_spect=str(files("f5_tts").joinpath("/home/aurora/output/api_out.png")),
+        file_spect=str(files("f5_tts").joinpath("../../output/api_out.png")),
         seed=-1,  # random seed = -1
     )
 
     print("seed :", f5tts.seed)
+
+    # python -m src.f5_tts.api  --text  "test"

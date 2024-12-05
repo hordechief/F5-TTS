@@ -87,6 +87,13 @@ file_spect=str(files("f5_tts").joinpath("/home/aurora/output/api_out.png"))
 output_audio_path = '/home/aurora/output/api_out.wav'
 ```
 
+set environment in `Dockerfile`
+
+```
+ENV DATA_DIR="/home/aurora/data"
+ENV OUTPUT_DIR="/home/aurora/output"
+```
+
 Change proxy in `Dockerfile`
 ```
 ENV http_proxy=http://172.17.0.1:7897/
