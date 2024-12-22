@@ -75,26 +75,24 @@ def get_local_ip_address() -> str:
 ## Lannch app.py for API
 
 ### Preparation
-Change the reference audio in `app.py`
-``` python
-ref_file="/home/aurora/data/tts/002.m4a"
-```
-
-Change ouput in `app.py`
-``` python
-file_wave=str(files("f5_tts").joinpath("/home/aurora/output/api_out.wav"))
-file_spect=str(files("f5_tts").joinpath("/home/aurora/output/api_out.png"))
-output_audio_path = '/home/aurora/output/api_out.wav'
-```
 
 set environment in `Dockerfile`
 
 ```
-ENV DATA_DIR="/home/aurora/data"
+ENV DATA_DIR="/home/aurora/data" 
 ENV OUTPUT_DIR="/home/aurora/output"
 ```
 
-Change proxy in `Dockerfile`
+> if you want to access the output data out from the docker, you should map the volume and provided a shared space, for data directory, by default, it will load from docker
+
+Change the reference audio in `app.py` if you want to add your own data
+``` python
+ref_file= str(Path(data_dir) / "tts" / "hordechief.mp3")
+```
+
+> TBD: change to code to read from configuraiton
+
+Change proxy in `Dockerfile` (Optional)
 ```
 ENV http_proxy=http://172.17.0.1:7897/
 ENV https_proxy=http://172.17.0.1:7897/
