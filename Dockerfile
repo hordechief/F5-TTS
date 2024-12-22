@@ -21,6 +21,7 @@ WORKDIR /workspace
 # ENV no_proxy="localhost,127.0.0.1"
 ENV DATA_DIR="/home/aurora/data"
 ENV OUTPUT_DIR="/home/aurora/output"
+ENV PORT=8890
 
 RUN git clone https://github.com/hordechief/F5-TTS.git \
     && cd F5-TTS \

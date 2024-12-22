@@ -5,14 +5,18 @@ docker build -t f5tts:v1 .
 
 ## Built container with f5-tts docker image
 ```
-# docker run -it -p 9201:8888 -p 9202:8889 -p 9203:8890 -p 9204:8891 --name f5-tts  --gpus all -v /home/aurora:/home/aurora -v /home/aurora/.cache/:/root/.cache/ ghcr.io/swivid/f5-tts:main
+# example of use original image
+docker run -it -p 9203:8890 --name f5-tts  --gpus all -v /home/aurora:/home/aurora -v /home/aurora/.cache/:/root/.cache/ ghcr.io/swivid/f5-tts:main
 
-docker run -it -p 9201:8888 -p 9202:8889 -p 9203:8890 -p 9204:8891 --name f5-tts  --gpus all -v /home/aurora:/home/aurora -v /home/aurora/.cache/:/root/.cache/ f5tts:v1
+# use your own model
+docker run -it -p 9203:8890 --name f5-tts  --gpus all -v /home/aurora:/home/aurora -v /home/aurora/.cache/:/root/.cache/ f5tts:v1
 ```
+
+> Note: `/home/aurora:/home/aurora` for data mapping, `/home/aurora/.cache/:/root/.cache/` for cache mapping to save your installation efforts, both are optional
 
 ## Launch the application
 ```
-f5-tts_infer-gradio --port 8889 --host 0.0.0.0
+f5-tts_infer-gradio --port 8890 --host 0.0.0.0
 ```
 Change code to update timeout parameter
 ```
@@ -79,18 +83,13 @@ def get_local_ip_address() -> str:
 set environment in `Dockerfile`
 
 ```
-ENV DATA_DIR="/home/aurora/data" 
-ENV OUTPUT_DIR="/home/aurora/output"
+ENV DATA_DIR="/home/aurora/data" # default value: /workspace/F5-TTS/data/tts/
+ENV REF_SOUND="hordechief.mp3"
+ENV OUTPUT_DIR="/home/aurora/output" # default value: /workspace/F5-TTS/output
+ENV PORT=8890
 ```
 
 > if you want to access the output data out from the docker, you should map the volume and provided a shared space, for data directory, by default, it will load from docker
-
-Change the reference audio in `app.py` if you want to add your own data
-``` python
-ref_file= str(Path(data_dir) / "tts" / "hordechief.mp3")
-```
-
-> TBD: change to code to read from configuraiton
 
 Change proxy in `Dockerfile` (Optional)
 ```
@@ -110,12 +109,12 @@ python app.py
 ### Test URL
 ```
 # infer only
-curl -X POST http://localhost:9103/infer -H "Content-Type: application/json" -d '{"input_file": "Select Create Alert on any paper page to activate paper alerts."}'
+curl -X POST http://localhost:9203/infer -H "Content-Type: application/json" -d '{"input_file": "Select Create Alert on any paper page to activate paper alerts."}'
 
-curl -X POST http://172.16.3.24:9103/infer -H "Content-Type: application/json" -d '{"input_file": "Select Create Alert on any paper page to activate paper alerts."}'
+curl -X POST http://172.16.3.24:9203/infer -H "Content-Type: application/json" -d '{"input_file": "Select Create Alert on any paper page to activate paper alerts."}'
 
 # infer with reference audio 
-curl -X POST http://localhost:9103/process -H "Content-Type: application/json" -d '{"input_file": "Select Create Alert on any paper page to activate paper alerts."}'
+curl -X POST http://localhost:9203/process -H "Content-Type: application/json" -d '{"input_file": "Select Create Alert on any paper page to activate paper alerts."}'
 ```
 
-Note: 9103 is the mapping port of 8890, 8890 is hardcode in `app.py`
+Note: 9103 is the mapping port of 8890, default value: 8890

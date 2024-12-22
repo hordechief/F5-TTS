@@ -29,12 +29,12 @@ app = Flask(__name__)
 f5tts = F5TTS()
 
 start_time = time.time()
-data_dir = os.environ.get("DATA_DIR",'./data')
+data_dir = os.environ.get("DATA_DIR",'./data/tts')
 output_dir = os.environ.get("OUTPUT_DIR",'./output')
-print(f">>>>data_dir is {data_dir}, output_dir is {output_dir}")
-ref_file= str(Path(data_dir) / "tts" / "hordechief.mp3")
-ref_file= str(Path(data_dir) / "tts" / "trump.mp3")
-#TBD: dynamically change the ref file
+ref_sound_name = os.environ.get("REF_SOUND", "hordechief.mp3") # "trump.mp3"
+print(f">>>>Data dir is {data_dir}, Output dir is {output_dir}, Ref sound is {ref_sound_name}")
+ref_file= str(Path(data_dir) / ref_sound_name)
+
 ref_text=""
 ref_file, ref_text = preprocess_ref_audio_text(ref_file, ref_text, device=f5tts.device)
 end_time = time.time()
@@ -180,4 +180,5 @@ def process_file_infer():
     print("seed :", f5tts.seed)
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=8890)
+    PORT = os.environ.get("PORT", 8890)
+    app.run(debug=True, host='0.0.0.0', port=int(PORT))
